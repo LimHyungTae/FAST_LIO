@@ -53,6 +53,8 @@
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <sensor_msgs/PointCloud2.h>
+#include <sensor_msgs/Image.h>
+#include <sensor_msgs/LaserScan.h>
 #include <tf/transform_datatypes.h>
 #include <tf/transform_broadcaster.h>
 #include <geometry_msgs/Vector3.h>
@@ -81,7 +83,7 @@ mutex mtx_buffer;
 condition_variable sig_buffer;
 
 string root_dir = ROOT_DIR;
-string map_file_path, lid_topic, imu_topic;
+string map_file_path, lid_topic, imu_topic, lid2d_topic, img_topic;
 
 double res_mean_last = 0.05, total_residual = 0.0;
 double last_timestamp_lidar = 0, last_timestamp_imu = -1.0;
@@ -331,10 +333,10 @@ void livox_pcl_cbk(const livox_ros_driver::CustomMsg::ConstPtr &msg)
     sig_buffer.notify_all();
 }
 
-void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in) 
+void imu_cbk(const sensor_msgs::Imu::ConstPtr &msg_in)
 {
     publish_count ++;
-    // cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
+//     cout<<"IMU got at: "<<msg_in->header.stamp.toSec()<<endl;
     sensor_msgs::Imu::Ptr msg(new sensor_msgs::Imu(*msg_in));
 
     if (abs(timediff_lidar_wrt_imu) > 0.1 && time_sync_en)
@@ -414,6 +416,14 @@ bool sync_packages(MeasureGroup &meas)
     time_buffer.pop_front();
     lidar_pushed = false;
     return true;
+}
+
+void lid2d_cbk(const sensor_msgs::LaserScan::ConstPtr &msg_in) {
+    std::cout << "\033[1;35mlaser scan cbk!" << std::endl;
+}
+
+void img_cbk(const sensor_msgs::Image::ConstPtr &msg_in) {
+    std::cout << "\033[1;36mimg_cbk!" << std::endl;
 }
 
 int process_increments = 0;
@@ -759,6 +769,8 @@ int main(int argc, char** argv)
     nh.param<string>("map_file_path",map_file_path,"");
     nh.param<string>("common/lid_topic",lid_topic,"/livox/lidar");
     nh.param<string>("common/imu_topic", imu_topic,"/livox/imu");
+    nh.param<string>("common/lid2d_topic", lid2d_topic,"/scan");
+    nh.param<string>("common/img_topic", img_topic,"/camera/color_image_rect_color");
     nh.param<bool>("common/time_sync_en", time_sync_en, false);
     nh.param<double>("filter_size_corner",filter_size_corner_min,0.5);
     nh.param<double>("filter_size_surf",filter_size_surf_min,0.5);
@@ -832,10 +844,19 @@ int main(int argc, char** argv)
         cout << "~~~~"<<ROOT_DIR<<" doesn't exist" << endl;
 
     /*** ROS subscribe initialization ***/
+    std::cout << "\033[1;32mCheck the topic names:" << std::endl;
+    std::cout << "\033[1;32m" << lid_topic << std::endl;
+    std::cout << "\033[1;32m" << imu_topic << std::endl;
+    std::cout << "\033[1;32m" << lid2d_topic << std::endl;
+    std::cout << "\033[1;32m" << img_topic << "\033[0m" << std::endl;
     ros::Subscriber sub_pcl = p_pre->lidar_type == AVIA ? \
         nh.subscribe(lid_topic, 200000, livox_pcl_cbk) : \
         nh.subscribe(lid_topic, 200000, standard_pcl_cbk);
     ros::Subscriber sub_imu = nh.subscribe(imu_topic, 200000, imu_cbk);
+    /********************* For KEFICO project ***********************/
+    ros::Subscriber sub_pcd2d = nh.subscribe(lid2d_topic, 200000, lid2d_cbk);
+    ros::Subscriber sub_img = nh.subscribe(img_topic, 200000, img_cbk);
+    /****************************************************************/
     ros::Publisher pubLaserCloudFull = nh.advertise<sensor_msgs::PointCloud2>
             ("/cloud_registered", 100000);
     ros::Publisher pubLaserCloudFull_body = nh.advertise<sensor_msgs::PointCloud2>
