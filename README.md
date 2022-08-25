@@ -1,20 +1,35 @@
-## Related Works and Extended Application
+# 현태 케피코 2를 위한 FAST_LIO
 
-**SLAM:**
+## How to run
 
-1. [ikd-Tree](https://github.com/hku-mars/ikd-Tree): A state-of-art dynamic KD-Tree for 3D kNN search.
-2. [R2LIVE](https://github.com/hku-mars/r2live): A high-precision LiDAR-inertial-Vision fusion work using FAST-LIO as LiDAR-inertial front-end.
-3. [LI_Init](https://github.com/hku-mars/LiDAR_IMU_Init): A robust, real-time LiDAR-IMU extrinsic initialization and synchronization package..
-4. [FAST-LIO-LOCALIZATION](https://github.com/HViktorTsoi/FAST_LIO_LOCALIZATION): The integration of FAST-LIO with **Re-localization** function module.
+```bash
+roslaunch fast_lio mapping_ouster128.launch
+```
 
-**Control and Plan:**
+Extrinsic은 아래와 같음 (LiDAR data를 IMU 관점에서 바라봤을 때).
 
-1. [IKFOM](https://github.com/hku-mars/IKFoM): A Toolbox for fast and high-precision on-manifold Kalman filter.
-2. [UAV Avoiding Dynamic Obstacles](https://github.com/hku-mars/dyn_small_obs_avoidance): One of the implementation of FAST-LIO in robot's planning.
-3. [UGV Demo](https://www.youtube.com/watch?v=wikgrQbE6Cs): Model Predictive Control for Trajectory Tracking on Differentiable Manifolds.
-4. [Bubble Planner](https://arxiv.org/abs/2202.12177): Planning High-speed Smooth Quadrotor Trajectories using Receding Corridors.
+```cpp
+Lidar_T_wrt_IMU<<VEC_FROM_ARRAY(extrinT);
+Lidar_R_wrt_IMU<<MAT_FROM_ARRAY(extrinR);
+```
 
-<!-- 10. [**FAST-LIVO**](https://github.com/hku-mars/FAST-LIVO): Fast and Tightly-coupled Sparse-Direct LiDAR-Inertial-Visual Odometry. -->
+따라서 hardware manual에 따라서 다음과 같이 설정 가능
+```
+extrinsic_T: [ -0.0064, 0.0, 0.07398 ]
+    extrinsic_R: [-1, 0, 0,
+                  0, 1, 0,
+                  0, 0, -1]
+```
+
+그 후 Scout mini에서 취득한 rosbag 실행시키면 됨
+
+주의
+```
+rosparam set use_sim_time true
+rosbag play ${ROSBAG_NAME}$.bag --clock
+```
+
+---
 
 ## FAST-LIO
 **FAST-LIO** (Fast LiDAR-Inertial Odometry) is a computationally efficient and robust LiDAR-inertial odometry package. It fuses LiDAR feature points with IMU data using a tightly-coupled iterated extended Kalman filter to allow robust navigation in fast-motion, noisy or cluttered environments where degeneration occurs. Our package address many key issues:
